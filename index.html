@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPX Grade Analyzer</title>
+<style>
+ :root{--ink:#1f2933;--muted:#6b7785;--bg:#f4f6f8;--card:#fff;--border:#d7dee6;--accent:#2f6feb}
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--ink);font-family:Segoe UI,Arial,sans-serif}
+ header{background:var(--card);border-bottom:1px solid var(--border);padding:14px 22px;
+   display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+ header .brand{font-size:18px;font-weight:700}
+ .controls{display:flex;gap:16px;align-items:center;margin-left:auto;flex-wrap:wrap}
+ .controls label{font-size:13px;color:var(--muted)}
+ select,input[type=number]{padding:4px 6px;border:1px solid var(--border);border-radius:6px;font:inherit}
+ input[type=number]{width:60px}
+ button{padding:5px 12px;border:1px solid var(--accent);background:var(--accent);color:#fff;
+   border-radius:6px;font:inherit;cursor:pointer}
+ .wrap{max-width:980px;margin:0 auto;padding:22px}
+ #drop{border:2px dashed #b9c4d0;border-radius:12px;background:#fff;padding:40px;text-align:center;
+   color:var(--muted);cursor:pointer;transition:.15s}
+ #drop.hover{border-color:var(--accent);background:#eef3ff;color:var(--ink)}
+ #drop b{color:var(--accent)}
+ h1{font-size:22px;margin:18px 0 2px}
+ h2{font-size:15px;margin:22px 0 8px}
+ .sub{color:var(--muted);margin:0 0 14px;font-size:13px}
+ .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+ .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+ .cval{font-size:20px;font-weight:700}
+ .clabel{font-size:12px;color:var(--muted);margin-top:2px}
+ .panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px}
+ table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);
+   border-radius:10px;overflow:hidden;font-size:14px}
+ th,td{padding:7px 12px;border-bottom:1px solid #eef2f6;text-align:left}
+ th{background:#eef2f6;font-size:12px;color:#41505e}
+ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+ tr:last-child td{border-bottom:none}
+ .muted{color:var(--muted);text-align:center}
+ .foot{color:var(--muted);font-size:12px;margin-top:28px;text-align:center}
+ @media(max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">GPX Grade Analyzer</div>
+  <div class="controls">
+    <label>Units
+      <select id="units"><option value="mi">mi / ft</option><option value="km">km / m</option></select>
+    </label>
+    <label>Uphill % <input id="uphill" type="number" value="8" step="1" min="1"></label>
+    <label>Downhill % <input id="downhill" type="number" value="5" step="1" min="1"></label>
+    <button id="reanalyze">Re-run</button>
+  </div>
+</header>
+<div class="wrap">
+  <div id="drop"><b>Choose a GPX file</b> or drag &amp; drop it here</div>
+  <input id="file" type="file" accept=".gpx" style="display:none">
+  <div id="report"></div>
+  <div class="foot">Runs entirely in your browser — your GPX file is never uploaded anywhere.</div>
+</div>
+
+<script src="gpx-analyze.js"></script>
+<script>
+ var drop = document.getElementById('drop'),
+     file = document.getElementById('file'),
+     report = document.getElementById('report');
+ var lastText = null;
+
+ drop.onclick = function () { file.click(); };
+ file.onchange = function (e) { if (e.target.files[0]) load(e.target.files[0]); };
+ ['dragover', 'dragenter'].forEach(function (ev) {
+   drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('hover'); });
+ });
+ ['dragleave', 'drop'].forEach(function (ev) {
+   drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('hover'); });
+ });
+ drop.addEventListener('drop', function (e) {
+   var f = e.dataTransfer.files[0]; if (f) load(f);
+ });
+
+ function load(f) {
+   var r = new FileReader();
+   r.onload = function () { lastText = r.result; analyze(); };
+   r.readAsText(f);
+ }
+ document.getElementById('reanalyze').onclick = analyze;
+ document.getElementById('units').onchange = analyze;
+
+ function analyze() {
+   if (!lastText) return;
+   try {
+     var d = GPX.compute(lastText, {
+       units: document.getElementById('units').value,
+       uphill_threshold: document.getElementById('uphill').value,
+       downhill_threshold: document.getElementById('downhill').value
+     });
+     report.innerHTML = GPX.renderReport(d);
+   } catch (err) {
+     report.innerHTML = '<p class="sub" style="color:#d21f2b">' + err.message + '</p>';
+   }
+ }
+</script>
+</body>
+</html>
